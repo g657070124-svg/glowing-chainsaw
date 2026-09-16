@@ -1,0 +1,51 @@
+name: Build APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Extract project
+        run: |
+          rm -rf project
+          mkdir project
+          unzip -q "Qiyasat_FINAL.zip" -d project
+
+      - name: Find project
+        run: |
+          echo "Searching for Gradle project..."
+          find project -name "settings.gradle.kts" -print
+          find project -maxdepth 3 -type d -name "app" -print
+
+      - name: Build APK
+        run: |
+          PROJECT_DIR=$(dirname "$(find project -name "settings.gradle.kts" -print -quit)")
+          echo "Project directory: $PROJECT_DIR"
+          cd "$PROJECT_DIR"
+          gradle assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Qiyasat-APK
+          path: project/**/app/build/outputs/apk/debug/app-debug.apk
