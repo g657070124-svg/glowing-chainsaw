@@ -25,12 +25,18 @@ jobs:
         with:
           gradle-version: "8.7"
 
-      - name: Prepare Android project
+      - name: Prepare project
+        shell: bash
         run: |
           mkdir -p app/src/main/java/com/example/qeyasat
 
-          cp MainActivity.kt app/src/main/java/com/example/qeyasat/MainActivity.kt
-          cp AndroidManifest.xml app/src/main/AndroidManifest.xml
+          if [ -f MainActivity.kt ]; then
+            cp MainActivity.kt app/src/main/java/com/example/qeyasat/MainActivity.kt
+          fi
+
+          if [ -f AndroidManifest.xml ]; then
+            cp AndroidManifest.xml app/src/main/AndroidManifest.xml
+          fi
 
           cat > settings.gradle.kts <<'EOF'
           pluginManagement {
@@ -38,6 +44,11 @@ jobs:
                   google()
                   mavenCentral()
                   gradlePluginPortal()
+              }
+
+              plugins {
+                  id("com.android.application") version "8.5.2"
+                  id("org.jetbrains.kotlin.android") version "1.9.24"
               }
           }
 
@@ -53,6 +64,10 @@ jobs:
 
           rootProject.name = "Qiyasat"
           include(":app")
+          EOF
+
+          cat > build.gradle.kts <<'EOF'
+          // Root project
           EOF
 
           cat > app/build.gradle.kts <<'EOF'
@@ -84,12 +99,27 @@ jobs:
           }
           EOF
 
-          echo "Android project prepared:"
-          find app -type f -print
+          echo "===== CHECK ====="
+          cat settings.gradle.kts
+          echo "===== APP ====="
+          cat app/build.gradle.kts
+          echo "===== FILES ====="
+          find app -type f
+
+      - name: Check required files
+        shell: bash
+        run: |
+          test -f settings.gradle.kts
+          test -f build.gradle.kts
+          test -f app/build.gradle.kts
+          test -f app/src/main/AndroidManifest.xml
+          test -f app/src/main/java/com/example/qeyasat/MainActivity.kt
+          echo "ALL REQUIRED FILES FOUND"
 
       - name: Build APK
+        shell: bash
         run: |
-          gradle assembleDebug
+          gradle --no-daemon assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
