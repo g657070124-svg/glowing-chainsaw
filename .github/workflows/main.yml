@@ -25,60 +25,74 @@ jobs:
         with:
           gradle-version: "8.7"
 
-      - name: Find ZIP
+      - name: Prepare Android project
         run: |
-          echo "Files in repository:"
-          find . -maxdepth 3 -type f -print
+          mkdir -p app/src/main/java/com/example/qeyasat
 
-          ZIP_FILE=$(find . -type f -iname "*.zip" -print -quit)
+          cp MainActivity.kt app/src/main/java/com/example/qeyasat/MainActivity.kt
+          cp AndroidManifest.xml app/src/main/AndroidManifest.xml
 
-          if [ -z "$ZIP_FILE" ]; then
-            echo "ERROR: No ZIP file found."
-            exit 1
-          fi
+          cat > settings.gradle.kts <<'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
 
-          echo "ZIP found: $ZIP_FILE"
-          echo "ZIP_FILE=$ZIP_FILE" >> "$GITHUB_ENV"
+          dependencyResolutionManagement {
+              repositoriesMode.set(
+                  org.gradle.api.initialization.resolve.RepositoriesMode.FAIL_ON_PROJECT_REPOS
+              )
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
 
-      - name: Extract project
-        run: |
-          rm -rf project
-          mkdir project
-          unzip -q "$ZIP_FILE" -d project
+          rootProject.name = "Qiyasat"
+          include(":app")
+          EOF
 
-          echo "Extracted files:"
-          find project -maxdepth 5 -type f -print
+          cat > app/build.gradle.kts <<'EOF'
+          plugins {
+              id("com.android.application")
+              id("org.jetbrains.kotlin.android")
+          }
 
-      - name: Find Gradle project
-        run: |
-          SETTINGS=$(find project -name "settings.gradle.kts" -print -quit)
+          android {
+              namespace = "com.example.qeyasat"
+              compileSdk = 35
 
-          if [ -z "$SETTINGS" ]; then
-            echo "ERROR: settings.gradle.kts not found."
-            exit 1
-          fi
+              defaultConfig {
+                  applicationId = "com.example.qeyasat"
+                  minSdk = 23
+                  targetSdk = 35
+                  versionCode = 1
+                  versionName = "1.0"
+              }
 
-          PROJECT_DIR=$(dirname "$SETTINGS")
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
 
-          echo "Gradle project:"
-          echo "$PROJECT_DIR"
+              kotlinOptions {
+                  jvmTarget = "17"
+              }
+          }
+          EOF
 
-          if [ ! -d "$PROJECT_DIR/app" ]; then
-            echo "ERROR: app folder not found."
-            exit 1
-          fi
-
-          echo "app folder found."
-
-          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          echo "Android project prepared:"
+          find app -type f -print
 
       - name: Build APK
         run: |
-          cd "$PROJECT_DIR"
           gradle assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Qiyasat-APK
-          path: "**/app/build/outputs/apk/debug/app-debug.apk"
+          path: app/build/outputs/apk/debug/app-debug.apk
